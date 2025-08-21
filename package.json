@@ -10,6 +10,7 @@
   "files": [
     "dist/**/*",
     "README.md",
+    "LICENSE",
     "package.json"
   ],
   "exports": {
