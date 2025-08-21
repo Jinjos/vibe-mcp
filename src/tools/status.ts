@@ -5,7 +5,7 @@ import { VibeCliWrapper } from '../utils/vibe-wrapper.js';
  * Status tool - Show system status and performance metrics
  */
 export class StatusTool {
-  name = 'status';
+  name = 'vibe_status';
   description = 'Get comprehensive status of the vibe system including platform configurations, rule analysis, and performance metrics';
   
   inputSchema = {

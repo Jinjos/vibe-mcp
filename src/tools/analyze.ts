@@ -66,7 +66,7 @@ export class AnalyzeTool {
         content: [
           {
             type: 'text',
-            text: JSON.stringify(result.data, null, 2)
+            text: typeof result.data === 'string' ? result.data : JSON.stringify(result.data, null, 2)
           }
         ]
       };

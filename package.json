@@ -1,6 +1,6 @@
 {
   "name": "@jinjos/vibe-mcp",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "MCP server for vibe-cli - Universal AI rules system",
   "main": "dist/index.js",
   "type": "module",
