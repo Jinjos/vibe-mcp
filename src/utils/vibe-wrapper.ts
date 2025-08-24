@@ -254,7 +254,7 @@ export class VibeCliWrapper {
           performance: {
             status: 'Active',
             score: analysis.analysis?.coverage?.score || 0,
-            recommendations: analysis.analysis?.recommendations?.immediate?.map(r => r.action) || []
+            recommendations: analysis.analysis?.recommendations?.immediate?.map((r: any) => r.action) || []
           },
           gaps: analysis.analysis?.gaps || {},
           summary: {
