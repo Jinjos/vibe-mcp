@@ -63,6 +63,7 @@ export class StatusTool {
                 projectPath,
                 verbose: options.verbose || false,
                 platformsConfigured: result.data?.platforms?.length || 0,
+                vibeInitialized: result.data?.vibeInitialized !== false, // defaults to true unless explicitly false
                 totalRules: result.data?.rules?.length || 0,
                 issuesFound: result.data?.issues?.length || 0,
                 timestamp: new Date().toISOString(),

@@ -182,44 +182,134 @@ export class VibeCliWrapper {
   }
 
   /**
-   * Get system status and performance metrics
+   * Get system status and performance metrics - Fixed to return clean JSON for MCP
    */
   async getStatus(projectPath: string, options: StatusOptions = {}): Promise<StatusResult> {
     try {
       this.validateVibeCliInstallation();
-      const { showStatus, analyzeVibeRules, detectRuleIssues, PLATFORM_LIMITS } = require(path.join(this.vibeLibPath, 'status.js'));
-      const { detectPlatforms } = require(path.join(this.vibeLibPath, 'platform-detector.js'));
+      const { detectPlatforms, directoryExists } = require(path.join(this.vibeLibPath, 'platform-detector.js'));
       
-      // Capture console output for structured data
-      const originalLog = console.log;
-      const logs: string[] = [];
-      console.log = (...args: any[]) => {
-        logs.push(args.join(' '));
-      };
-      
-      try {
-        await showStatus(projectPath, { ...options, mcpMode: true });
-      } finally {
-        console.log = originalLog;
-      }
-
-      // Get structured data for API response
+      // Check if vibe directory exists first
       const vibeDir = path.join(projectPath, 'vibe');
+      const vibeExists = await directoryExists(vibeDir);
+      
+      // Get platform detection data
       const detection = await detectPlatforms(projectPath);
-      const vibeRules = await analyzeVibeRules(vibeDir);
-      const issues = await detectRuleIssues(vibeRules);
+      
+      if (!vibeExists) {
+        // Return structured data for uninitialized vibe system
+        return {
+          success: true,
+          data: {
+            vibeInitialized: false,
+            platforms: {
+              detected: detection.platforms || [],
+              configured: [],
+              total: detection.platforms?.length || 0
+            },
+            rules: {
+              total: 0,
+              files: []
+            },
+            issues: [],
+            performance: {
+              status: 'N/A - System not initialized',
+              recommendations: ['Run vibe init to set up the system']
+            },
+            summary: {
+              status: 'not-initialized',
+              message: 'Vibe system not initialized. Run vibe init to get started.',
+              platformsFound: detection.platforms?.length || 0,
+              configuredPlatforms: 0,
+              totalRules: 0,
+              issuesFound: 0
+            }
+          },
+          message: 'Vibe system not initialized'
+        };
+      }
+      
+      // Get structured data using analyzer in MCP mode (like analyze method does)
+      try {
+        const { RepositoryAnalyzer } = require(path.join(this.vibeLibPath, 'analyzer/index.js'));
+        const analyzer = new RepositoryAnalyzer({ mcpMode: true });
+        const analysis = await analyzer.analyze(projectPath, { mcpMode: true });
+        
+        // Transform analysis data into status format
+        const statusData = {
+          vibeInitialized: true,
+          platforms: {
+            detected: detection.platforms || [],
+            configured: analysis.analysis?.aiConfiguration?.platforms ? 
+              Object.keys(analysis.analysis.aiConfiguration.platforms).filter(p => 
+                analysis.analysis.aiConfiguration.platforms[p].configured
+              ) : [],
+            total: detection.platforms?.length || 0,
+            details: analysis.analysis?.aiConfiguration?.platforms || {}
+          },
+          rules: {
+            total: analysis.analysis?.aiConfiguration?.totalRules || 0,
+            files: [] // Could be enhanced to show file details if needed
+          },
+          performance: {
+            status: 'Active',
+            score: analysis.analysis?.coverage?.score || 0,
+            recommendations: analysis.analysis?.recommendations?.immediate?.map(r => r.action) || []
+          },
+          gaps: analysis.analysis?.gaps || {},
+          summary: {
+            status: 'initialized',
+            message: 'Vibe system is active and configured',
+            platformsFound: detection.platforms?.length || 0,
+            configuredPlatforms: analysis.analysis?.aiConfiguration?.platforms ? 
+              Object.keys(analysis.analysis.aiConfiguration.platforms).filter(p => 
+                analysis.analysis.aiConfiguration.platforms[p].configured
+              ).length : 0,
+            totalRules: analysis.analysis?.aiConfiguration?.totalRules || 0,
+            maturityScore: analysis.analysis?.coverage?.score || 0
+          }
+        };
 
-      return {
-        success: true,
-        data: {
-          platforms: detection.platforms,
-          rules: vibeRules,
-          issues: issues,
-          platformLimits: PLATFORM_LIMITS,
-          consoleOutput: logs.join('\n')
-        },
-        message: 'Status retrieved successfully'
-      };
+        return {
+          success: true,
+          data: statusData,
+          message: 'Status retrieved successfully'
+        };
+        
+      } catch (analyzerError) {
+        // Fallback to basic status if analyzer fails
+        const basicStatus = {
+          vibeInitialized: true,
+          platforms: {
+            detected: detection.platforms || [],
+            configured: detection.platforms || [], // Assume configured if vibe dir exists
+            total: detection.platforms?.length || 0
+          },
+          rules: {
+            total: 0, // Could count files in vibe dir if needed
+            files: []
+          },
+          issues: [],
+          performance: {
+            status: 'Active (Basic mode)',
+            recommendations: ['Full analysis unavailable - some features may be limited']
+          },
+          summary: {
+            status: 'initialized-basic',
+            message: 'Vibe system is initialized (basic status mode)',
+            platformsFound: detection.platforms?.length || 0,
+            configuredPlatforms: detection.platforms?.length || 0,
+            totalRules: 0
+          }
+        };
+
+        return {
+          success: true,
+          data: basicStatus,
+          message: 'Status retrieved successfully (basic mode)'
+        };
+      }
+      
     } catch (error) {
       return {
         success: false,
@@ -227,9 +317,7 @@ export class VibeCliWrapper {
         message: 'Failed to get system status'
       };
     }
-  }
-
-  /**
+  }  /**
    * Auto-fix configuration issues
    */
   async fix(projectPath: string, options: FixOptions = {}): Promise<FixResult> {
@@ -321,11 +409,33 @@ export interface StatusOptions {
 export interface StatusResult {
   success: boolean;
   data?: {
-    platforms: string[];
-    rules: any[];
-    issues: any[];
-    platformLimits: any;
-    consoleOutput: string;
+    vibeInitialized: boolean;
+    platforms?: {
+      detected: string[];
+      configured: string[];
+      total: number;
+      details?: any;
+    };
+    rules?: {
+      total: number;
+      files: any[];
+    };
+    issues?: any[];
+    performance?: {
+      status: string;
+      score?: number;
+      recommendations: string[];
+    };
+    gaps?: any;
+    summary: {
+      status: string;
+      message: string;
+      platformsFound: number;
+      configuredPlatforms: number;
+      totalRules: number;
+      maturityScore?: number;
+      issuesFound?: number;
+    };
   };
   error?: string;
   message: string;

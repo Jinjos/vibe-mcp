@@ -1,6 +1,6 @@
 {
   "name": "@jinjos/vibe-mcp",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "MCP server for vibe-cli - Universal AI rules system",
   "main": "dist/index.js",
   "type": "module",
@@ -28,6 +28,9 @@
     "verify": "node scripts/verify-build.js",
     "build:verify": "npm run build && npm run verify",
     "prepublishOnly": "npm run clean && npm run build"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "keywords": [
     "mcp",
